@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoachGPT - Elevate Your Gameplay</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>CoachGPT</h1>
+        <p>League of Legends Coaching with OpenAI Vision</p>
+    </header>
+
+    <section class="upload-section">
+        <input type="file" id="videoInput" accept="video/*">
+        <button onclick="uploadVideo()">Upload Video</button>
+        <p class="upload-instructions">Select a gameplay recording and let CoachGPT analyze your moves!</p>
+    </section>
+
+    <section class="video-display-section">
+        <video id="displayVideo" width="640" height="360" controls>
+            Your browser does not support the video tag.
+        </video>
+    </section>
+
+    <section class="action-section">
+        <button onclick="generatePayload()">Generate Insights</button>
+        <div id="advice"></div>
+        <h2 id="timeTaken"> Results can take up to 2 minutes. </h2>
+        <h1> Like what you see? Stay updated on CoachGPT!</h1>
+        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScL2GY_Cdeqkl9IpKebyECeYud_tIEinFH39L4UYOQ7enBkcw/viewform?embedded=true" width="640" height="542" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+    </section>
+
+    <script>
+        var callsSent = 0;
+        function uploadVideo() {
+            var input = document.getElementById('videoInput');
+            var video = document.getElementById('displayVideo');
+
+            var file = input.files[0];
+
+            if (file) {
+                var objectURL = URL.createObjectURL(file);
+                video.src = objectURL;
+            } else {
+                alert('Please select a valid video file.');
+            }
+        }
+        function displayResult(e){
+            let resp = JSON.parse(e.target.response);
+            let displayText = resp.msg.replaceAll("\n", "<br>");//.replace(/(\d\.\s)\*\*(.*?)\*\*\:/g, "<h1>$1$2</h1>");
+            document.getElementById("advice").innerHTML = displayText; 
+            document.getElementById("timeTaken").innerHTML = "Time taken: " + resp.time_taken + " seconds";
+        }
+        function displayError(){
+            document.getElementById("timeTaken").innerHTML = "Sorry, something has broken. Please try again.";
+        }
+        function generatePayload(){
+            document.getElementById("timeTaken").innerHTML = "CoachGPT is analyzing your gameplay now. Please wait for up to 2 minutes.";
+            let canvas = document.createElement('canvas');
+            let video = document.getElementById('displayVideo');
+            let duration = video.duration;
+            let times = [];
+            for(let i = 0; i < duration; i += (duration / 10)){
+                times.push(i);
+            }
+            let payload = []
+            let x = 0;
+            if(callsSent == 0){
+                video.addEventListener('seeked', function(){
+                    canvas.width = 1920;
+                    canvas.height = 1080;
+
+                    let ctx = canvas.getContext('2d');
+                    ctx.drawImage( video, 0, 0, canvas.width, canvas.height );
+
+                    let image = canvas.toDataURL('image/jpeg');
+                    payload.push(image);
+                    x += 1
+                    if(x < times.length){
+                        video.currentTime = times[x];
+                    }
+                    else{
+                        //send it
+                        let call = new XMLHttpRequest();
+                        call.addEventListener("load", displayResult);
+                        call.onerror = displayError;
+                        call.open("POST", "https://script.google.com/macros/s/AKfycbzUID2ZIQ8yqQEwVtQSFttRtNMn5sH53ZJ-DtyEyOnQkDzUXsaexcJojdYjq_xlA4ld/exec");
+                        call.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
+                        call.send(JSON.stringify(payload));
+                        x = 0; //when someone retries the payload x will be back to 0
+                        times = [];
+                        callsSent += 1;
+                    }
+                });
+            } //if the button was already clicked once, the eventListener is already set and doesn't need to be set again
+            video.currentTime = times[x];
+        }
+    </script>
+
+</body>
+</html>

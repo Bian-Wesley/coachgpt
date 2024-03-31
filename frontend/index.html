@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coach GPT</title>
+</head>
+<body>
+
+<input type="file" id="videoInput" accept="video/*">
+<button onclick="uploadVideo()">Upload Video</button>
+
+<video id="displayVideo" width="640" height="360" controls>
+    Your browser does not support the video tag.
+</video>
+
+<button onclick = "generatePayload()"> Generate Payload </button>
+<div id = "advice"> </div>
+<h2 id = "timeTaken"> </h2>
+
+<script>
+    var callsSent = 0;
+    function uploadVideo() {
+        var input = document.getElementById('videoInput');
+        var video = document.getElementById('displayVideo');
+
+        var file = input.files[0];
+
+        if (file) {
+            var objectURL = URL.createObjectURL(file);
+            video.src = objectURL;
+        } else {
+            alert('Please select a valid video file.');
+        }
+    }
+    function displayResult(e){
+        let resp = JSON.parse(e.target.response);
+        let displayText = resp.msg.replaceAll("\n", "<br>");//.replace(/(\d\.\s)\*\*(.*?)\*\*\:/g, "<h1>$1$2</h1>");
+        document.getElementById("advice").innerHTML = displayText; 
+        document.getElementById("timeTaken").innerHTML = resp.time_taken;
+    }
+    function displayError(){
+        document.getElementById("timeTaken").innerHTML = "Sorry, something has broken. Please try again.";
+    }
+    function generatePayload(){
+        document.getElementById("timeTaken").innerHTML = "sending now";
+        let canvas = document.createElement('canvas');
+        let video = document.getElementById('displayVideo');
+        let duration = video.duration;
+        let times = [];
+        for(let i = 0; i < duration; i += (duration / 10)){
+            times.push(i);
+        }
+        let payload = []
+        let x = 0;
+        if(callsSent == 0){
+            video.addEventListener('seeked', function(){
+                canvas.width = 1920;
+                canvas.height = 1080;
+
+                let ctx = canvas.getContext('2d');
+                ctx.drawImage( video, 0, 0, canvas.width, canvas.height );
+
+                let image = canvas.toDataURL('image/jpeg');
+                payload.push(image);
+                x += 1
+                if(x < times.length){
+                    video.currentTime = times[x];
+                }
+                else{
+                    //send it
+                    let call = new XMLHttpRequest();
+                    call.addEventListener("load", displayResult);
+                    call.onerror = displayError;
+                    call.open("POST", "http://127.0.0.1:5000");
+                    call.setRequestHeader("Content-Type", "Application/json");
+                    call.send(JSON.stringify(payload));
+                    x = 0; //when someone retries the payload x will be back to 0
+                    times = [];
+                    callsSent += 1;
+                }
+            });
+        } //if the button was already clicked once, the eventListener is already set and doesn't need to be set again
+        video.currentTime = times[x];
+    }
+</script>
+
+</body>
+</html>

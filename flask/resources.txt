@@ -1,0 +1,2 @@
+https://serversideup.net/capturing-an-image-from-an-html5-canvas-or-video-element/
+https://stackoverflow.com/questions/6150289/how-can-i-convert-an-image-into-base64-string-using-javascript
